@@ -93,7 +93,7 @@ st.markdown("**100% authentiek**")
 
 c1, c2 = st.columns([3, 1])
 with c1:
-    tc = st.text_input("Threadcount", value="R18 K12 B6", help="bijv. R28 W4 R8 Y4 R28 K32")
+    tc = st.text_input("Threadcount", value="DB4 G28 DB4 G6 DB28 K6", help="bijv. R28 W4 R8 Y4 R28 K32")
 with c2:
     tw = st.slider("Draad-dikte", 1, 10, 4)
     tex = st.checkbox("Wol-textuur", True)
@@ -131,4 +131,5 @@ Klassieke tartans (kopieer-plak):
 • Dress Gordon → K4 B24 K24 Y4 K60
 • Burberry → K6 W6 R32 W32 K6
 """)
+
 
