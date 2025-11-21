@@ -4,10 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from io import BytesIO
 
-# Kleuren map (je kunt dit makkelijk uitbreiden)
+# Kleuren map
 COLORS = {
     "R": (200, 16, 46),    # Classic red
-    "G": (0, 128,27),      # Dark green
+    "G": (0, 128, 27),     # Dark green
     "B": (0, 0, 139),      # Navy blue
     "K": (35, 35, 35),     # Black
     "Y": (255, 215, 0),    # Gold
@@ -20,7 +20,6 @@ COLORS = {
 }
 
 def parse_threadcount(tc: str):
-    """Converteert bijv. 'R12 G32 B12 K48 Y6' naar lijst van (kleurletter, count)"""
     parts = tc.upper().strip().split()
     pattern = []
     for p in parts:
@@ -35,56 +34,86 @@ def parse_threadcount(tc: str):
     return pattern
 
 def mirror_pattern(pattern):
-    """Maakt de klassieke tartan spiegeling: vooruit + achteruit - laatste kleur"""
-    forward = [count for color, count in pattern]
-    backward = forward[::-1][1:]  # zonder de eerste van de omgekeerde (die is dubbel)
-    mirrored = forward + backward
-    colors = [color for color, count in pattern]
+    forward = [count for _, count in pattern]
+    backward = forward[::-1][1:]          # zonder de laatste van de originele (die wordt dubbel)
+    mirrored_counts = forward + backward
+    colors = [col for col, _ in pattern]
     mirrored_colors = colors + colors[::-1][1:]
-    return mirrored, mirrored_colors
+    return mirrored_counts, mirrored_colors
 
 def create_tartan(pattern, size=800, thread_width=4):
-    forward_counts = [c for col, c in pattern]
-    total_threads = sum(forward_counts) * 2 - forward_counts[-1]  # door spiegeling
+    mirrored_counts, mirrored_colors = mirror_pattern(pattern)
     
     img = np.zeros((size, size, 3), dtype=np.uint8)
     
     # Verticaal (warp)
     pos = 0
-    mirrored_counts, mirrored_colors = mirror_pattern(pattern)
-    for count, color_key in zip(mirrored_counts, mirrored_colors):
+    for count, col in zip(mirrored_counts, mirrored_colors):
         threads = count * thread_width
-        img[:, pos:pos+threads] = COLORS[color_key]
+        if pos + threads > size:
+            threads = size - pos
+        img[:, pos:pos + threads] = COLORS[col]
         pos += threads
         if pos >= size:
             break
     
-    # Horizontaal (weft) - zelfde patroon maar getransponeerd
-    img2 = np.zeros_like(img)
+    # Horizontaal (weft)
     pos = 0
-    for count, color_key in zip(mirrored_counts, mirrored_colors):
+    for count, col in zip(mirrored_counts, mirrored_colors):
         threads = count * thread_width
-        img2[pos:pos+threads, :] = COLORS[color_key]
+        if pos + threads > size:
+            threads = size - pos
+        img[pos:pos + threads, :] = COLORS[col]
         pos += threads
         if pos >= size:
             break
     
-    # Overlay: waar beide kleuren samenkomen krijg je een mengkleur (simpele add)
-    # Dit geeft het echte tartan "overcheck" effect
-    result = np.minimum(img + img2, 255).astype(np.uint8)
+    # Overcheck door simpele add (met clip op 255)
+    result = np.minimum(img.astype(np.uint16) + img.astype(np.uint16), 255).astype(np.uint8)
     return result
 
-# ────────────────────────── Streamlit app ──────────────────────────
+# ────────────────────────── Streamlit UI ──────────────────────────
 
 st.set_page_config(page_title="Tartan Mirror", layout="centered")
 st.title("🏴󠁧󠁢󠁳󠁣󠁴󠁿 Tartan Mirror")
 
 st.markdown("""
-Voer een threadcount in (bijvoorbeeld `R12 G32 B12 K48 Y6`) en zie direct een echte, correct gespiegelde tartan.
-De app spiegelt zowel warp als weft precies zoals het hoort.
+Voer een threadcount in (bijv. `R12 G32 B12 K48 Y6`) en zie direct een echte, correct gespiegelde Schotse ruit.
 """)
 
 example = st.checkbox("Voorbeeld laden (MacDonald of the Isles)", value=True)
 
 if example:
-    default_tc = "R18 K12 B6
+    default_tc = "R18 K12 B6"          # <-- Hier zat het probleem eerder!
+else:
+    default_tc = ""
+
+tc_input = st.text_input(
+    "Threadcount (bijv. R12 G32 B12 K48 Y6)",
+    value=default_tc,
+    help="Formaat: Kleurletter + aantal, spaties ertussen. Beschikbare kleuren: " + ", ".join(COLORS.keys())
+)
+
+if tc_input.strip():
+    pattern = parse_threadcount(tc_input)
+    if pattern:
+        tartan_img = create_tartan(pattern, size=800, thread_width=4)
+        
+        st.subheader("Jouw tartan")
+        st.image(tartan_img, use_column_width=True)
+        
+        # Download knop
+        buf = BytesIO()
+        plt.imsave(buf, tartan_img, format="png")
+        buf.seek(0)
+        st.download_button(
+            label="Download als PNG (800×800)",
+            data=buf.getvalue(),
+            file_name=f"tartan_{tc_input.strip().replace(' ', '_')}.png",
+            mime="image/png"
+        )
+        
+        # Gespiegelde threadcount tonen
+        mirrored_counts, mirrored_colors = mirror_pattern(pattern)
+        seq = " ".join(f"{col}{cnt}" for col, cnt in zip(mirrored_colors, mirrored_counts))
+        st.caption(f"Gespiegelde threadcount: `{seq}`")
