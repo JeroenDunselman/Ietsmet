@@ -1,6 +1,7 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import random  
 
 st.set_page_config(page_title="Tartan Designer", layout="wide")
 st.title("🏴󠁧󠁢󠁳󠁣󠁴󠁿 Design Your Own Tartan")
@@ -77,4 +78,5 @@ if st.button("Download als PNG"):
         st.download_button("Download PNG", f, "my_tartan.png", "image/png")
 
 st.caption(f"Sett: {sett_size} cm | Symmetry: {symmetry} | Threads: {len(seq)}")
+
 
