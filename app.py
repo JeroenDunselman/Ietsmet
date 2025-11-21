@@ -71,12 +71,31 @@ ax.set_xlim(0, x)
 ax.set_ylim(0, 1)
 ax.axis('off')
 st.pyplot(fig)
-
+if st.checkbox("Toon schaal (met poppetje van 1,80 m)"):
+    fig2, ax2 = plt.subplots(figsize=(12, 6))
+    scale = sett_size / len(seq) * 100  # pixels per cm
+    person_height_px = 180 * scale
+    
+    # Tartan als achtergrond
+    x = 0
+    for letter in seq:
+        ax2.add_patch(patches.Rectangle((x, 0), 1, 100, color=color_map.get(letter, "#808080")))
+        x += 1
+    
+    # Poppetje
+    ax2.add_patch(patches.Rectangle((50, 0), 20, person_height_px, color="#FFDBA8", alpha=0.8))
+    ax2.text(60, person_height_px + 10, "jij (1,80 m)", ha="center", fontsize=12)
+    
+    ax2.set_xlim(0, len(seq))
+    ax2.set_ylim(0, max(100, person_height_px + 50))
+    ax2.axis("off")
+    st.pyplot(fig2)
 if st.button("Download als PNG"):
     fig.savefig("my_tartan.png", dpi=300, bbox_inches='tight')
     with open("my_tartan.png", "rb") as f:
         st.download_button("Download PNG", f, "my_tartan.png", "image/png")
 
 st.caption(f"Sett: {sett_size} cm | Symmetry: {symmetry} | Threads: {len(seq)}")
+
 
 
