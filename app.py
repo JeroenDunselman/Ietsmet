@@ -1,72 +1,50 @@
 import streamlit as st
-import matplotlib.pyplot as plt
-import numpy as np
 
-st.set_page_config(page_title="Tartan Weaving Simulator", layout="wide")
-st.title("🧵 Tartan Weaving Simulator – Echte stofsimulatie")
+st.set_page_config(page_title="Tartan Weaving Sim – 2D Safe", layout="wide")
+st.title("🧵 Tartan Weaving Simulator – 2D (no crash edition)")
 
 color_map = {
-    "K": "#000000", "R": "#C00000", "G": "#006000", "B": "#000080",
-    "Y": "#FFC000", "W": "#FFFFFF", "P": "#800080", "O": "#FF8000",
-    "A": "#808080", "Gold": "#D4AF37"
+    "K": "black", "R": "red", "G": "green", "B": "blue",
+    "Y": "yellow", "W": "white", "P": "purple", "O": "orange",
+    "A": "gray", "Gold": "gold"
 }
 
 st.sidebar.header("Warp (staand)")
-warp_tc = st.sidebar.text_area("Warp threadcount", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
+warp_tc = st.sidebar.text_area("Warp", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
 
 st.sidebar.header("Weft (liggend)")
-weft_tc = st.sidebar.text_area("Weft threadcount", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
+weft_tc = st.sidebar.text_area("Weft", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
 
-sett_size = st.sidebar.slider("Sett-grootte (cm)", 5, 60, 20)
-dpi = st.sidebar.slider("Resolutie (DPI)", 100, 600, 300, help="Hoger = scherper, maar langzamer")
+width = st.sidebar.slider("Breedte (sett-repeats)", 10, 100, 40)
+height = st.sidebar.slider("Hoogte (sett-repeats)", 10, 80, 30)
 
-# ALLE BEREKENINGEN PAS HIER – nádat sliders bestaan
-def tc_to_colors(tc):
-    parts = tc.upper().split()
-    colors = []
-    for part in parts:
+# Parse
+def tc_to_seq(tc):
+    seq = []
+    for part in tc.upper().split():
         if len(part) > 1 and part[0] in color_map and part[1:].isdigit():
-            colors.extend([color_map[part[0]]] * int(part[1:]))
-    return colors
+            seq.extend([color_map[part[0]]] * int(part[1:]))
+    return seq
 
-warp_colors = tc_to_colors(warp_tc)
-weft_colors = tc_to_colors(weft_tc)
+warp = tc_to_seq(warp_tc)
+weft = tc_to_seq(weft_tc)
 
-if not warp_colors or not weft_colors:
+if not warp or not weft:
     st.error("Vul beide threadcounts in!")
     st.stop()
 
-# Schaal pas hier – voorkomt out-of-memory bij grote tartans
-scale = max(1, sett_size * dpi // 100)
-warp_grid = np.repeat(warp_colors, scale)
-weft_grid = np.repeat(weft_colors, scale)
-
-height, width = len(weft_grid), len(warp_grid)
-
-# Limit voor Streamlit Cloud (voorkomt crash bij enorme tartans)
-max_pixels = 2_000_000
-if height * width > max_pixels:
-    st.warning(f"Te groot ({height*width:,} pixels). Verlaag sett/dpi of gebruik kortere threadcount.")
-    height = min(height, int(max_pixels**0.5))
-    width = min(width, int(max_pixels**0.5))
-
-fabric = np.zeros((height, width, 3))
-
-for y in range(height):
-    for x in range(width):
+# Maak HTML-grid (superlicht, nooit crash)
+html = "<div style='line-height:1px; font-size:0;'>"
+for y in range(height * len(weft)):
+    for x in range(width * len(warp)):
         if (x + y) % 2 == 0:
-            fabric[y, x] = plt.cm.colors.to_rgb(warp_grid[x % len(warp_grid)])
+            col = warp[x % len(warp)]
         else:
-            fabric[y, x] = plt.cm.colors.to_rgb(weft_grid[y % len(weft_grid)])
+            col = weft[y % len(weft)]
+        html += f"<div style='display:inline-block; width:4px; height:4px; background:{col};'></div>"
+    html += "<br>"
+html += "</div>"
 
-fig, ax = plt.subplots(figsize=(width / dpi * 1.5, height / dpi * 1.5), dpi=dpi)
-ax.imshow(fabric)
-ax.axis('off')
-st.pyplot(fig)
+st.components.v1.html(html, height=height*len(weft)*4 + 50, scrolling=True)
 
-if st.button("Download als PNG"):
-    fig.savefig("woven_tartan.png", dpi=dpi, bbox_inches='tight')
-    with open("woven_tartan.png", "rb") as f:
-        st.download_button("Download PNG", f, "woven_tartan.png", "image/png")
-
-st.caption(f"Sett: {sett_size} cm | Warp threads: {len(warp_grid)} | Weft threads: {len(weft_grid)} | Pixels: {width}x{height}")
+st.caption(f"Sett-repeats: {width} × {height} | Warp threads: {len(warp)} | Weft threads: {len(weft)}")
