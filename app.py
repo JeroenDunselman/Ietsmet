@@ -1,71 +1,60 @@
 import streamlit as st
 import matplotlib.pyplot as plt
-import numpy as np
+import matplotlib.patches as patches
 
-st.set_page_config(page_title="Tartan Weaving Sim – Safe", layout="wide")
-st.title("🧵 Tartan Weaving Simulator – 100 % crash-vrij")
+st.set_page_config(page_title="Tartan Mirror", layout="centered")
+st.title("🧵 Tartan Mirror")
 
-color_map = {
-    "K": "#000000", "R": "#C00000", "G": "#006000", "B": "#000080",
-    "Y": "#FFC000", "W": "#FFFFFF", "P": "#800080", "O": "#FF8000",
-    "A": "#808080", "Gold": "#D4AF37"
+# Kleuren
+colors = {
+    "r": "#c00000", "g": "#006000", "b": "#000080", "k": "#000000",
+    "y": "#ffc000", "w": "#ffffff", "p": "#800080", "o": "#ff8000",
+    "a": "#808080"
 }
 
-st.sidebar.header("Warp (staand)")
-warp_tc = st.sidebar.text_area("Warp threadcount", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
+# Input
+tc = st.text_input("Threadcount (bijv. r8 k12 b6)", "r8 k12 b6").lower()
 
-st.sidebar.header("Weft (liggend)")
-weft_tc = st.sidebar.text_area("Weft threadcount", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
-
-sett_size = st.sidebar.slider("Sett-grootte (cm)", 5, 60, 20)
-dpi = st.sidebar.slider("Resolutie (DPI)", 100, 400, 200)
-
-# ALLES PAS HIERONDER – NA de sliders
-def tc_to_colors(tc):
-    parts = tc.upper().split()
-    colors = []
+# Parse naar lijst van kleuren
+def parse(tc):
+    parts = tc.split()
+    seq = []
     for part in parts:
-        if len(part) > 1 and part[0] in color_map and part[1:].isdigit():
-            colors.extend([color_map[part[0]]] * int(part[1:]))
-    return colors
+        if len(part) > 1 and part[0] in colors and part[1:].isdigit():
+            seq.extend([colors[part[0]]] * int(part[1:]))
+    return seq
 
-warp_colors = tc_to_colors(warp_tc)
-weft_colors = tc_to_colors(weft_tc)
+seq = parse(tc)
 
-if not warp_colors or not weft_colors:
-    st.error("Vul beide threadcounts in!")
-    st.stop()
+# Spiegelen voor echte tartan (warp = weft = seq + gespiegeld)
+full = seq + seq[::-1]
 
-# Veilige schaling (nooit meer dan 1.5 miljoen pixels)
-scale = max(1, sett_size * dpi // 100)
-warp_grid = np.repeat(warp_colors, scale)
-weft_grid = np.repeat(weft_colors, scale)
+# Threadcount-balk (boven)
+fig1, ax1 = plt.subplots(figsize=(10, 1))
+for i, col in enumerate(seq):
+    ax1.add_patch(patches.Rectangle((i, 0), 1, 1, color=col))
+ax1.set_xlim(0, len(seq))
+ax1.set_ylim(0, 1)
+ax1.axis("off")
+st.pyplot(fig1)
+st.caption("Threadcount (warp/weft voor spiegeling)")
 
-max_pixels = 1_500_000
-if len(warp_grid) * len(weft_grid) > max_pixels:
-    st.warning("Te groot voor live preview – resultaat wordt verkleind")
-    factor = (max_pixels / (len(warp_grid) * len(weft_grid))) ** 0.5
-    warp_grid = warp_grid[::int(1/factor)+1]
-    weft_grid = weft_grid[::int(1/factor)+1]
+# Tartan (onder) – 20×20 repeats
+repeats = 20
+fig2, ax2 = plt.subplots(figsize=(10, 10))
+for y in range(repeats):
+    for x in range(repeats):
+        for i, col in enumerate(full):
+            ax2.add_patch(patches.Rectangle((x*len(full) + i, y*len(full)), 1, len(full), color=full[i]))
+ax2.set_xlim(0, repeats * len(full))
+ax2.set_ylim(0, repeats * len(full))
+ax2.set_aspect("equal")
+ax2.axis("off")
+st.pyplot(fig2)
+st.caption(f"Echte tartan – {repeats}×{repeats} repeats (warp = weft = gespiegeld)")
 
-height, width = len(weft_grid), len(warp_grid)
-fabric = np.zeros((height, width, 3))
-
-for y in range(height):
-    for x in range(width):
-        if (x + y) % 2 == 0:
-            fabric[y, x] = plt.cm.colors.to_rgb(warp_grid[x % len(warp_grid)])
-        else:
-            fabric[y, x] = plt.cm.colors.to_rgb(weft_grid[y % len(weft_grid)])
-
-fig, ax = plt.subplots(figsize=(width / dpi * 1.5, height / dpi * 1.5), dpi=dpi)
-ax.imshow(fabric)
-ax.axis('off')
-st.pyplot(fig)
-
-if st.button("Download als PNG"):
-    fig.savefig("woven_tartan.png", dpi=dpi, bbox_inches='tight')
-    with open("woven_tartan.png", "rb") as f:
-        st.download_button("Download PNG", f, "woven_tartan.png", "image/png")
-
-st.caption(f"Sett: {sett_size} cm | Warp threads: {len(warp_grid)} | Weft threads: {len(weft_grid)}")
+# Download
+if st.button("Download tartan als PNG"):
+    fig2.savefig("my_tartan.png", dpi=300, bbox_inches='tight', facecolor="#111111")
+    with open("my_tartan.png", "rb") as f:
+        st.download_button("Download", f, "my_tartan.png", "image/png")
