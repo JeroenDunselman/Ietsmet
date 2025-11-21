@@ -1,84 +1,92 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import random  
 
-st.set_page_config(page_title="Tartan Designer", layout="wide")
-st.title("🏴󠁧󠁢󠁳󠁣󠁴󠁿 Design Your Own Tartan")
+st.set_page_config(page_title="Tartan Designer Pro", layout="wide")
+st.title("🏴󠁧󠁢󠁳󠁣󠁴󠁿 Tartan Designer – Shadow & Tonal Edition")
 
-# Kleurenpalet (letter → hex)
-color_map = {
-    "K": "#000000",  # Black
-    "R": "#C00000",  # Red
-    "G": "#006000",  # Green
-    "B": "#000080",  # Blue
-    "Y": "#FFC000",  # Yellow
-    "W": "#FFFFFF",  # White
-    "P": "#800080",  # Purple
-    "O": "#FF8000",  # Orange
-    "A": "#808080",  # Grey
-    "Gold": "#D4AF37"
+# === Professionele kleurdefinities met 5 tinten (dark → light → dark) ===
+color_tones = {
+    "K": ["#000000", "#111111", "#222222", "#111111", "#000000"],  # Black
+    "R": ["#400000", "#800000", "#C00000", "#800000", "#400000"],  # Red
+    "G": ["#003000", "#006000", "#008000", "#006000", "#003000"],  # Green
+    "B": ["#000040", "#000080", "#0000C0", "#000080", "#000040"],  # Blue
+    "Y": ["#806000", "#C0A000", "#FFC000", "#C0A000", "#806000"],  # Yellow
+    "W": ["#DDDDDD", "#EEEEEE", "#FFFFFF", "#EEEEEE", "#DDDDDD"],  # White
+    "P": ["#400040", "#800080", "#C000C0", "#800080", "#400040"],  # Purple
+    "O": ["#803000", "#C06000", "#FF8000", "#C06000", "#803000"],  # Orange
+    "A": ["#404040", "#606060", "#808080", "#606060", "#404040"],  # Grey
 }
 
-st.sidebar.header("Threadcount bouwen")
-threadcount = st.sidebar.text_area("Threadcount", "R8 G24 B8 K32 Y4", height=100)
+# Sidebar – prof-termen
+st.sidebar.header("Sett samenstellen")
+threadcount = st.sidebar.text_area(
+    "Threadcount", 
+    "R8 G24 B8 K32 Y4 R8 G24 B8 K32 Y4",
+    help="Bijv. R8 G24 B8 K32 Y4 (R=rood, G=groen, etc.)"
+)
 
-if st.sidebar.button("🎲 Random tartan"):
-    letters = "KRGBYWPOA"
-    parts = []
-    for _ in range(random.randint(5, 12)):
-        letter = random.choice(letters)
-        count = random.randint(2, 40)
-        parts.append(f"{letter}{count}")
-    new_threadcount = " ".join(parts)
-    st.sidebar.code(new_threadcount)  # toont de nieuwe threadcount
-    threadcount = new_threadcount  # update het invoerveld
+symmetry = st.sidebar.selectbox(
+    "Symmetrie",
+    ["None", "Horizontal (reversed sett)", "Both (pmm)", "Rotational 180°"],
+    help="Horizontal = klassieke tartan met pivot in het midden"
+)
 
-symmetry = st.sidebar.selectbox("Symmetry", ["None", "Horizontal", "Vertical", "Both", "Rotational 180°"])
-sett_size = st.sidebar.slider("Sett grootte (cm)", 5, 50, 20)
+shadow_mode = st.sidebar.checkbox("Shadow tartan mode (tonal blend)", value=False,
+    help="Vervangt elke kleur door 5 tinten (dark → base → light → base → dark)"
+)
 
-# Parse threadcount
-def parse_threadcount(tc):
+sett_size = st.sidebar.slider("Sett-grootte (cm)", 5, 60, 20)
+
+# === Parse threadcount ===
+def parse_tc(tc):
     parts = tc.upper().split()
     seq = []
     for part in parts:
-        if len(part) > 1 and part[0] in color_map and part[1:].isdigit():
+        if len(part) > 1 and part[0] in color_tones and part[1:].isdigit():
             seq.extend([part[0]] * int(part[1:]))
     return seq
 
-seq = parse_threadcount(threadcount)
+seq = parse_tc(threadcount)
 
-# Symmetry toepassen
-if symmetry == "Horizontal":
+# === Symmetry toepassen ===
+if "Horizontal" in symmetry or symmetry == "Rotational 180°":
     seq = seq + seq[::-1]
-elif symmetry == "Vertical":
-    seq = seq + seq
-elif symmetry == "Both":
+elif symmetry == "Both (pmm)":
     half = seq + seq[::-1]
     seq = half + half
-elif symmetry == "Rotational 180°":
-    seq = seq + seq[::-1]
 
-# Tekening
-fig, ax = plt.subplots(figsize=(14, 4))
+# === Shadow mode: elke kleur → 5 tinten ===
+if shadow_mode:
+    toned_seq = []
+    for letter in seq:
+        tones = color_tones[letter]
+        toned_seq.extend([tones[0], tones[1], tones[2], tones[3], tones[4]])
+    seq = toned_seq
+else:
+    toned_seq = seq  # voor tekening
+
+# === Tekening ===
+fig, ax = plt.subplots(figsize=(18, 5))
 x = 0
-for letter in seq:
-    col = color_map.get(letter, "#808080")
+for letter in toned_seq:
+    if shadow_mode:
+        col = letter  # letter is al een hex-kleur
+    else:
+        col = color_tones[letter][2]  # middelste (basis) tint
     ax.add_patch(patches.Rectangle((x, 0), 1, 1, color=col))
     x += 1
 
 ax.set_xlim(0, x)
 ax.set_ylim(0, 1)
 ax.axis('off')
+ax.set_aspect('equal')
 st.pyplot(fig)
 
-if st.button("Download als PNG"):
-    fig.savefig("my_tartan.png", dpi=300, bbox_inches='tight')
-    with open("my_tartan.png", "rb") as f:
-        st.download_button("Download PNG", f, "my_tartan.png", "image/png")
+# === Download ===
+if st.button("Download als PNG (kilt-ready)"):
+    fig.savefig("shadow_tartan.png", dpi=300, bbox_inches="tight", facecolor="#111111")
+    with open("shadow_tartan.png", "rb") as f:
+        st.download_button("Download PNG", f, "shadow_tartan.png", "image/png")
 
-st.caption(f"Sett: {sett_size} cm | Symmetry: {symmetry} | Threads: {len(seq)}")
-
-
-
-
+st.caption(f"Sett: {sett_size} cm | Symmetrie: {symmetry} | Shadow mode: {'Aan' if shadow_mode else 'Uit'} | Threads: {len(toned_seq)}")
