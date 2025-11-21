@@ -87,9 +87,9 @@ def create_tartan(pattern, size=900, thread_width=4, texture=True):
 # ────────────────────────── Streamlit App ──────────────────────────
 
 st.set_page_config(page_title="Echte Tartan Mirror", layout="centered")
-st.title("🏴󠁧󠁢󠁳󠁣󠁴󠁿 Echte Tartan Mirror")
+st.title("🏴󠁧󠁢󠁳󠁣󠁴󠁿 Tartan ")
 
-st.markdown("**100% authentieke Schotse tartans – correcte spiegeling + overcheck**")
+st.markdown("**100% authentiek**")
 
 c1, c2 = st.columns([3, 1])
 with c1:
@@ -131,3 +131,4 @@ Klassieke tartans (kopieer-plak):
 • Dress Gordon → K4 B24 K24 Y4 K60
 • Burberry → K6 W6 R32 W32 K6
 """)
+
