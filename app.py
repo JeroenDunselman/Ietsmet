@@ -1,50 +1,71 @@
 import streamlit as st
+import matplotlib.pyplot as plt
+import numpy as np
 
-st.set_page_config(page_title="Tartan Weaving Sim – 2D Safe", layout="wide")
-st.title("🧵 Tartan Weaving Simulator – 2D (no crash edition)")
+st.set_page_config(page_title="Tartan Weaving Sim – Safe", layout="wide")
+st.title("🧵 Tartan Weaving Simulator – 100 % crash-vrij")
 
 color_map = {
-    "K": "black", "R": "red", "G": "green", "B": "blue",
-    "Y": "yellow", "W": "white", "P": "purple", "O": "orange",
-    "A": "gray", "Gold": "gold"
+    "K": "#000000", "R": "#C00000", "G": "#006000", "B": "#000080",
+    "Y": "#FFC000", "W": "#FFFFFF", "P": "#800080", "O": "#FF8000",
+    "A": "#808080", "Gold": "#D4AF37"
 }
 
 st.sidebar.header("Warp (staand)")
-warp_tc = st.sidebar.text_area("Warp", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
+warp_tc = st.sidebar.text_area("Warp threadcount", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
 
 st.sidebar.header("Weft (liggend)")
-weft_tc = st.sidebar.text_area("Weft", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
+weft_tc = st.sidebar.text_area("Weft threadcount", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
 
-width = st.sidebar.slider("Breedte (sett-repeats)", 10, 100, 40)
-height = st.sidebar.slider("Hoogte (sett-repeats)", 10, 80, 30)
+sett_size = st.sidebar.slider("Sett-grootte (cm)", 5, 60, 20)
+dpi = st.sidebar.slider("Resolutie (DPI)", 100, 400, 200)
 
-# Parse
-def tc_to_seq(tc):
-    seq = []
-    for part in tc.upper().split():
+# ALLES PAS HIERONDER – NA de sliders
+def tc_to_colors(tc):
+    parts = tc.upper().split()
+    colors = []
+    for part in parts:
         if len(part) > 1 and part[0] in color_map and part[1:].isdigit():
-            seq.extend([color_map[part[0]]] * int(part[1:]))
-    return seq
+            colors.extend([color_map[part[0]]] * int(part[1:]))
+    return colors
 
-warp = tc_to_seq(warp_tc)
-weft = tc_to_seq(weft_tc)
+warp_colors = tc_to_colors(warp_tc)
+weft_colors = tc_to_colors(weft_tc)
 
-if not warp or not weft:
+if not warp_colors or not weft_colors:
     st.error("Vul beide threadcounts in!")
     st.stop()
 
-# Maak HTML-grid (superlicht, nooit crash)
-html = "<div style='line-height:1px; font-size:0;'>"
-for y in range(height * len(weft)):
-    for x in range(width * len(warp)):
+# Veilige schaling (nooit meer dan 1.5 miljoen pixels)
+scale = max(1, sett_size * dpi // 100)
+warp_grid = np.repeat(warp_colors, scale)
+weft_grid = np.repeat(weft_colors, scale)
+
+max_pixels = 1_500_000
+if len(warp_grid) * len(weft_grid) > max_pixels:
+    st.warning("Te groot voor live preview – resultaat wordt verkleind")
+    factor = (max_pixels / (len(warp_grid) * len(weft_grid))) ** 0.5
+    warp_grid = warp_grid[::int(1/factor)+1]
+    weft_grid = weft_grid[::int(1/factor)+1]
+
+height, width = len(weft_grid), len(warp_grid)
+fabric = np.zeros((height, width, 3))
+
+for y in range(height):
+    for x in range(width):
         if (x + y) % 2 == 0:
-            col = warp[x % len(warp)]
+            fabric[y, x] = plt.cm.colors.to_rgb(warp_grid[x % len(warp_grid)])
         else:
-            col = weft[y % len(weft)]
-        html += f"<div style='display:inline-block; width:4px; height:4px; background:{col};'></div>"
-    html += "<br>"
-html += "</div>"
+            fabric[y, x] = plt.cm.colors.to_rgb(weft_grid[y % len(weft_grid)])
 
-st.components.v1.html(html, height=height*len(weft)*4 + 50, scrolling=True)
+fig, ax = plt.subplots(figsize=(width / dpi * 1.5, height / dpi * 1.5), dpi=dpi)
+ax.imshow(fabric)
+ax.axis('off')
+st.pyplot(fig)
 
-st.caption(f"Sett-repeats: {width} × {height} | Warp threads: {len(warp)} | Weft threads: {len(weft)}")
+if st.button("Download als PNG"):
+    fig.savefig("woven_tartan.png", dpi=dpi, bbox_inches='tight')
+    with open("woven_tartan.png", "rb") as f:
+        st.download_button("Download PNG", f, "woven_tartan.png", "image/png")
+
+st.caption(f"Sett: {sett_size} cm | Warp threads: {len(warp_grid)} | Weft threads: {len(weft_grid)}")
