@@ -22,6 +22,17 @@ color_map = {
 st.sidebar.header("Threadcount bouwen")
 threadcount = st.sidebar.text_area("Threadcount", "R8 G24 B8 K32 Y4", height=100)
 
+if st.sidebar.button("🎲 Random tartan"):
+    letters = "KRGBYWPOA"
+    parts = []
+    for _ in range(random.randint(5, 12)):
+        letter = random.choice(letters)
+        count = random.randint(2, 40)
+        parts.append(f"{letter}{count}")
+    new_threadcount = " ".join(parts)
+    st.sidebar.code(new_threadcount)  # toont de nieuwe threadcount
+    threadcount = new_threadcount  # update het invoerveld
+
 symmetry = st.sidebar.selectbox("Symmetry", ["None", "Horizontal", "Vertical", "Both", "Rotational 180°"])
 sett_size = st.sidebar.slider("Sett grootte (cm)", 5, 50, 20)
 
@@ -66,3 +77,4 @@ if st.button("Download als PNG"):
         st.download_button("Download PNG", f, "my_tartan.png", "image/png")
 
 st.caption(f"Sett: {sett_size} cm | Symmetry: {symmetry} | Threads: {len(seq)}")
+
