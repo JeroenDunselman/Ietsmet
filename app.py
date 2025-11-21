@@ -1,60 +1,90 @@
+# app.py
 import streamlit as st
+import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+from io import BytesIO
 
-st.set_page_config(page_title="Tartan Mirror", layout="centered")
-st.title("🧵 Tartan Mirror")
-
-# Kleuren
-colors = {
-    "r": "#c00000", "g": "#006000", "b": "#000080", "k": "#000000",
-    "y": "#ffc000", "w": "#ffffff", "p": "#800080", "o": "#ff8000",
-    "a": "#808080"
+# Kleuren map (je kunt dit makkelijk uitbreiden)
+COLORS = {
+    "R": (200, 16, 46),    # Classic red
+    "G": (0, 128,27),      # Dark green
+    "B": (0, 0, 139),      # Navy blue
+    "K": (35, 35, 35),     # Black
+    "Y": (255, 215, 0),    # Gold
+    "W": (255, 255, 255),  # White
+    "O": (255, 140, 0),    # Orange
+    "P": (128, 0, 128),    # Purple
+    "A": (180, 180, 180),  # Grey / Azure
+    "N": (0, 51, 102),     # Dark blue (Navy)
+    "T": (0, 128, 128),    # Teal
 }
 
-# Input
-tc = st.text_input("Threadcount (bijv. r8 k12 b6)", "r8 k12 b6").lower()
+def parse_threadcount(tc: str):
+    """Converteert bijv. 'R12 G32 B12 K48 Y6' naar lijst van (kleurletter, count)"""
+    parts = tc.upper().strip().split()
+    pattern = []
+    for p in parts:
+        if not p:
+            continue
+        color = p[0]
+        count = int(p[1:])
+        if color not in COLORS:
+            st.error(f"Onbekende kleur: {color}")
+            return None
+        pattern.append((color, count))
+    return pattern
 
-# Parse naar lijst van kleuren
-def parse(tc):
-    parts = tc.split()
-    seq = []
-    for part in parts:
-        if len(part) > 1 and part[0] in colors and part[1:].isdigit():
-            seq.extend([colors[part[0]]] * int(part[1:]))
-    return seq
+def mirror_pattern(pattern):
+    """Maakt de klassieke tartan spiegeling: vooruit + achteruit - laatste kleur"""
+    forward = [count for color, count in pattern]
+    backward = forward[::-1][1:]  # zonder de eerste van de omgekeerde (die is dubbel)
+    mirrored = forward + backward
+    colors = [color for color, count in pattern]
+    mirrored_colors = colors + colors[::-1][1:]
+    return mirrored, mirrored_colors
 
-seq = parse(tc)
+def create_tartan(pattern, size=800, thread_width=4):
+    forward_counts = [c for col, c in pattern]
+    total_threads = sum(forward_counts) * 2 - forward_counts[-1]  # door spiegeling
+    
+    img = np.zeros((size, size, 3), dtype=np.uint8)
+    
+    # Verticaal (warp)
+    pos = 0
+    mirrored_counts, mirrored_colors = mirror_pattern(pattern)
+    for count, color_key in zip(mirrored_counts, mirrored_colors):
+        threads = count * thread_width
+        img[:, pos:pos+threads] = COLORS[color_key]
+        pos += threads
+        if pos >= size:
+            break
+    
+    # Horizontaal (weft) - zelfde patroon maar getransponeerd
+    img2 = np.zeros_like(img)
+    pos = 0
+    for count, color_key in zip(mirrored_counts, mirrored_colors):
+        threads = count * thread_width
+        img2[pos:pos+threads, :] = COLORS[color_key]
+        pos += threads
+        if pos >= size:
+            break
+    
+    # Overlay: waar beide kleuren samenkomen krijg je een mengkleur (simpele add)
+    # Dit geeft het echte tartan "overcheck" effect
+    result = np.minimum(img + img2, 255).astype(np.uint8)
+    return result
 
-# Spiegelen voor echte tartan (warp = weft = seq + gespiegeld)
-full = seq + seq[::-1]
+# ────────────────────────── Streamlit app ──────────────────────────
 
-# Threadcount-balk (boven)
-fig1, ax1 = plt.subplots(figsize=(10, 1))
-for i, col in enumerate(seq):
-    ax1.add_patch(patches.Rectangle((i, 0), 1, 1, color=col))
-ax1.set_xlim(0, len(seq))
-ax1.set_ylim(0, 1)
-ax1.axis("off")
-st.pyplot(fig1)
-st.caption("Threadcount (warp/weft voor spiegeling)")
+st.set_page_config(page_title="Tartan Mirror", layout="centered")
+st.title("🏴󠁧󠁢󠁳󠁣󠁴󠁿 Tartan Mirror")
 
-# Tartan (onder) – 20×20 repeats
-repeats = 20
-fig2, ax2 = plt.subplots(figsize=(10, 10))
-for y in range(repeats):
-    for x in range(repeats):
-        for i, col in enumerate(full):
-            ax2.add_patch(patches.Rectangle((x*len(full) + i, y*len(full)), 1, len(full), color=full[i]))
-ax2.set_xlim(0, repeats * len(full))
-ax2.set_ylim(0, repeats * len(full))
-ax2.set_aspect("equal")
-ax2.axis("off")
-st.pyplot(fig2)
-st.caption(f"Echte tartan – {repeats}×{repeats} repeats (warp = weft = gespiegeld)")
+st.markdown("""
+Voer een threadcount in (bijvoorbeeld `R12 G32 B12 K48 Y6`) en zie direct een echte, correct gespiegelde tartan.
+De app spiegelt zowel warp als weft precies zoals het hoort.
+""")
 
-# Download
-if st.button("Download tartan als PNG"):
-    fig2.savefig("my_tartan.png", dpi=300, bbox_inches='tight', facecolor="#111111")
-    with open("my_tartan.png", "rb") as f:
-        st.download_button("Download", f, "my_tartan.png", "image/png")
+example = st.checkbox("Voorbeeld laden (MacDonald of the Isles)", value=True)
+
+if example:
+    default_tc = "R18 K12 B6
