@@ -18,9 +18,9 @@ st.sidebar.header("Weft (liggend)")
 weft_tc = st.sidebar.text_area("Weft threadcount", "K4 R28 K4 Y4 K24 R8 G24 B24 R8 K24 Y4", height=100)
 
 sett_size = st.sidebar.slider("Sett-grootte (cm)", 5, 60, 20)
-dpi = st.sidebar.slider("Resolutie (DPI)", 100, 600, 300)
+dpi = st.sidebar.slider("Resolutie (DPI)", 100, 600, 300, help="Hoger = scherper, maar langzamer")
 
-# === ALLEEN HIER WORDT ER IETS BEREKEND (na de sliders) ===
+# ALLE BEREKENINGEN PAS HIER – nádat sliders bestaan
 def tc_to_colors(tc):
     parts = tc.upper().split()
     colors = []
@@ -36,20 +36,28 @@ if not warp_colors or not weft_colors:
     st.error("Vul beide threadcounts in!")
     st.stop()
 
-# Schaal pas hier, nádat sliders bestaan
-scale = sett_size * dpi // 100
+# Schaal pas hier – voorkomt out-of-memory bij grote tartans
+scale = max(1, sett_size * dpi // 100)
 warp_grid = np.repeat(warp_colors, scale)
 weft_grid = np.repeat(weft_colors, scale)
 
 height, width = len(weft_grid), len(warp_grid)
+
+# Limit voor Streamlit Cloud (voorkomt crash bij enorme tartans)
+max_pixels = 2_000_000
+if height * width > max_pixels:
+    st.warning(f"Te groot ({height*width:,} pixels). Verlaag sett/dpi of gebruik kortere threadcount.")
+    height = min(height, int(max_pixels**0.5))
+    width = min(width, int(max_pixels**0.5))
+
 fabric = np.zeros((height, width, 3))
 
 for y in range(height):
     for x in range(width):
         if (x + y) % 2 == 0:
-            fabric[y, x] = plt.cm.colors.to_rgb(warp_grid[x])
+            fabric[y, x] = plt.cm.colors.to_rgb(warp_grid[x % len(warp_grid)])
         else:
-            fabric[y, x] = plt.cm.colors.to_rgb(weft_grid[y])
+            fabric[y, x] = plt.cm.colors.to_rgb(weft_grid[y % len(weft_grid)])
 
 fig, ax = plt.subplots(figsize=(width / dpi * 1.5, height / dpi * 1.5), dpi=dpi)
 ax.imshow(fabric)
@@ -60,3 +68,5 @@ if st.button("Download als PNG"):
     fig.savefig("woven_tartan.png", dpi=dpi, bbox_inches='tight')
     with open("woven_tartan.png", "rb") as f:
         st.download_button("Download PNG", f, "woven_tartan.png", "image/png")
+
+st.caption(f"Sett: {sett_size} cm | Warp threads: {len(warp_grid)} | Weft threads: {len(weft_grid)} | Pixels: {width}x{height}")
