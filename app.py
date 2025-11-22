@@ -15,39 +15,11 @@ import matplotlib.patches as patches
 TARTANS_CSV_URL = "https://www.tartanregister.gov.uk/csvExport.ashx"
 
 @st.cache_data
+# Vervang de load_tartans() functie tijdelijk door puur fallback:
+@st.cache_data
 def load_tartans():
-    try:
-        df = pd.read_csv(TARTANS_CSV_URL)
-        df = df[['TartanName', 'Threadcount', 'PaletteName', 'TartanDescription']].dropna(subset=['TartanName'])
-        df['TartanName'] = df['TartanName'].str.strip().str.title()
-        return df
-    except:
-        # Fallback kleine dataset als internet/CSV faalt
-        data = {
-            "TartanName": [
-                "Black Watch", "Royal Stewart", "Dress Gordon", "MacLeod Of Lewis",
-                "Campbell", "MacKenzie", "Douglas", "Buchanan", "Fraser", "Graham Of Menteith"
-            ],
-            "Threadcount": [
-                "K8 R4 K24 B24 K24 G32", "R8 B4 R4 W4 R4 Y4 R32", "K8 G28 W4 B28 K4 G28 W4 K28",
-                "B8 G32 R4 G32 B32", "B4 G32 K4 B32 G32 K32", "G8 K32 R4 K32 G32",
-                "G8 B32 K4 B32 G32", "Y4 K32 R4 K32 Y32", "R8 G32 K4 G32 R32", "B8 R32 G4 R32 B32"
-            ],
-            "TartanDescription": [
-                "The famous regimental tartan of the Black Watch.",
-                "The most famous tartan of the Stewart clan.",
-                "Modern dress variant of the Gordon tartan.",
-                "Ancient MacLeod hunting tartan.",
-                "Clan Campbell of Argyll tartan.",
-                "MacKenzie clan tartan.",
-                "Ancient Douglas tartan.",
-                "Buchanan modern tartan.",
-                "Fraser hunting tartan.",
-                "Graham of Menteith tartan."
-            ]
-        }
-        return pd.DataFrame(data)
-
+    data = { ... }  # Je bestaande fallback data
+    return pd.DataFrame(data)
 df_tartans = load_tartans()
 
 st.set_page_config(page_title="Tartan Finder", layout="centered")
@@ -138,3 +110,4 @@ if selected_name:
         file_name=f"{selected_name.replace(' ', '_')}.png",
         mime="image/png"
     )
+
